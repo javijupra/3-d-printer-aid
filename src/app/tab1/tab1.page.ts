@@ -1,246 +1,157 @@
-import { Component } from '@angular/core';
+import { Component, HostListener, Directive, ViewChild, ElementRef, Renderer2 } from '@angular/core';
 
 import * as THREE from '../../../node_modules/three/build/three.module.js';
 import {OrbitControls} from '../../../node_modules/three/examples/jsm/controls/OrbitControls.js';
 import {STLLoader} from '../../../node_modules/three/examples/jsm/loaders/STLLoader.js';
+
+var scene;
+var camera;
+var threeRenderer;
 
 @Component({
   selector: 'app-tab1',
   templateUrl: 'tab1.page.html',
   styleUrls: ['tab1.page.scss']
 })
+
+// @Directive({
+// 	selector: '[stlviewer]'
+// })
+
 export class Tab1Page {
+	
+	// Grab handle on div to render into
+	// @ViewChild('stlviewer') stlviewer: ElementRef;
 
-  constructor() {}
+	// Set up three.js resources
+	// threeRenderer: any;
+	// camera: any;
+	// scene: any;
+	loader: any;
 
-  ngOnInit() {
+	constructor(private renderer: Renderer2, private el: ElementRef) {
 
-    var container, stats;
+		threeRenderer = new THREE.WebGLRenderer( { antialias: true } );
+		camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 15 );
+		scene = new THREE.Scene();
+		this.loader = new STLLoader();
+	}
 
-			var camera, cameraTarget, scene, renderer;
+	ngOnInit() {
 
-			init();
-			animate();
+		camera.position.set( 20, 0.15, 20 );
 
-			function init() {
+		scene.background = new THREE.Color( 0x72645b );
+		scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
 
-        container = document.getElementsByClassName("stlviewer");
-		// // container = document.createElement( 'div' );
-        // document.body.appendChild( document.getElementsByClassName("stlviewer") );
-        // container.appendChild( renderer.domElement );
 
-				camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 15 );
-				camera.position.set( 20, 0.15, 20 );
+		// Ground
+		var plane = new THREE.Mesh(
+			new THREE.PlaneBufferGeometry( 40, 40 ),
+			new THREE.MeshPhongMaterial( { color: 0x999999, specular: 0x101010 } )
+		);
+		plane.rotation.x = - Math.PI / 2;
+		plane.position.y = - 0.5;
+		scene.add( plane );
 
-				cameraTarget = new THREE.Vector3( 0, - 0.25, 0 );
+		plane.receiveShadow = true;
 
-				scene = new THREE.Scene();
-				scene.background = new THREE.Color( 0x72645b );
-				scene.fog = new THREE.Fog( 0x72645b, 2, 15 );
+		// Lights
+		scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
+		this.addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+		this.addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
 
+		// Renderer
+		threeRenderer.setPixelRatio( window.devicePixelRatio );
+		threeRenderer.setSize( window.innerWidth, window.innerHeight );
+		threeRenderer.outputEncoding = THREE.sRGBEncoding;
 
-				// Ground
+		threeRenderer.shadowMap.enabled = true;
 
-				var plane = new THREE.Mesh(
-					new THREE.PlaneBufferGeometry( 40, 40 ),
-					new THREE.MeshPhongMaterial( { color: 0x999999, specular: 0x101010 } )
-				);
-				plane.rotation.x = - Math.PI / 2;
-				plane.position.y = - 0.5;
-				scene.add( plane );
+		window.addEventListener( 'resize', this.onWindowResize, false );
 
-				plane.receiveShadow = true;
+	}
 
+	ngAfterViewInit() {
+	// ASCII file
 
-				// ASCII file
+	this.loader.load( '../../assets/Monkey.stl', function ( geometry ) {
 
-				var loader = new STLLoader();
-				loader.load( '../../assets/Monkey.stl', function ( geometry ) {
+		var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
+		var mesh = new THREE.Mesh( geometry, material );
+		
+		// Compute the middle
+		var middle = new THREE.Vector3();
+		geometry.computeBoundingBox();
+		geometry.boundingBox.getCenter(middle);
 
-					var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
-					var mesh = new THREE.Mesh( geometry, material );
+		mesh.position.set( 0, 0, 0 );
+		mesh.rotation.set( - Math.PI / 2, 0, 0);
+		mesh.scale.set( 0.2, 0.2, 0.2 );
 
-					console.log("hoalalal");
-					
-					// Compute the middle
-					var middle = new THREE.Vector3();
-					geometry.computeBoundingBox();
-					geometry.boundingBox.getCenter(middle);
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
 
-					// // Center it
-					// mesh.position.x = -1 * middle.x;
-					// mesh.position.y = -1 * middle.y;
-					// mesh.position.z = -1 * middle.z;
+		scene.add( mesh );
 
-					mesh.position.set( 0, 0, 0 );
-					mesh.rotation.set( - Math.PI / 2, 0, 0);
-					mesh.scale.set( 0.2, 0.2, 0.2 );
+		// Pull the camera away as needed
+		
+		var largestDimension = Math.max(geometry.boundingBox.max.x,
+			geometry.boundingBox.max.y, geometry.boundingBox.max.z)
+			camera.position.z = largestDimension * 1.5;
 
-					mesh.castShadow = true;
-					mesh.receiveShadow = true;
+	});
 
-					scene.add( mesh );
+		// this.renderer.appendChild(this.el.nativeElement, threeRenderer.domElement);
+		document.getElementById("stlviewer").appendChild(threeRenderer.domElement);
+		
+		this.render();
+	}
 
-					// var material = new THREE.MeshPhongMaterial({ color: 0xff5533, specular: 100, shininess: 100 });
-					// var mesh = new THREE.Mesh(geometry, material);
-					// scene.add(mesh);
+	render() {
 
-					// // Compute the middle
-					// var middle = new THREE.Vector3();
-					// geometry.computeBoundingBox();
-					// geometry.boundingBox.getCenter(middle);
+		window.requestAnimationFrame(() => this.render());
 
-					// // Center it
-					// mesh.position.x = -1 * middle.x;
-					// mesh.position.y = -1 * middle.y;
-					// mesh.position.z = -1 * middle.z;
+		var timer = Date.now() * 0.0005;
+		var cameraTarget = new THREE.Vector3( 0, - 0.25, 0 );
 
-					// Pull the camera away as needed
-					
-					var largestDimension = Math.max(geometry.boundingBox.max.x,
-						geometry.boundingBox.max.y, geometry.boundingBox.max.z)
-					camera.position.z = largestDimension * 1.5;
+		camera.position.x = Math.cos( timer ) * 3;
+		camera.position.z = Math.sin( timer ) * 3;
 
-				} );
+		camera.lookAt( cameraTarget );
 
+		threeRenderer.render( scene, camera );
 
-				// // Binary files
+	}
 
-				// var material = new THREE.MeshPhongMaterial( { color: 0xAAAAAA, specular: 0x111111, shininess: 200 } );
+	addShadowedLight( x, y, z, color, intensity ) {
 
-				// loader.load( './models/stl/binary/pr2_head_pan.stl', function ( geometry ) {
+		var directionalLight = new THREE.DirectionalLight( color, intensity );
+		directionalLight.position.set( x, y, z );
+		scene.add( directionalLight );
 
-				// 	var mesh = new THREE.Mesh( geometry, material );
+		directionalLight.castShadow = true;
 
-				// 	mesh.position.set( 0, - 0.37, - 0.6 );
-				// 	mesh.rotation.set( - Math.PI / 2, 0, 0 );
-				// 	mesh.scale.set( 2, 2, 2 );
+		var d = 1;
+		directionalLight.shadow.camera.left = - d;
+		directionalLight.shadow.camera.right = d;
+		directionalLight.shadow.camera.top = d;
+		directionalLight.shadow.camera.bottom = - d;
 
-				// 	mesh.castShadow = true;
-				// 	mesh.receiveShadow = true;
+		directionalLight.shadow.camera.near = 1;
+		directionalLight.shadow.camera.far = 4;
 
-				// 	scene.add( mesh );
+		directionalLight.shadow.bias = - 0.002;
 
-				// } );
+	}
 
-				// loader.load( './models/stl/binary/pr2_head_tilt.stl', function ( geometry ) {
+	onWindowResize() {
 
-				// 	var mesh = new THREE.Mesh( geometry, material );
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
 
-				// 	mesh.position.set( 0.136, - 0.37, - 0.6 );
-				// 	mesh.rotation.set( - Math.PI / 2, 0.3, 0 );
-				// 	mesh.scale.set( 2, 2, 2 );
+		threeRenderer.setSize( window.innerWidth, window.innerHeight );
 
-				// 	mesh.castShadow = true;
-				// 	mesh.receiveShadow = true;
-
-				// 	scene.add( mesh );
-
-				// } );
-
-				// // Colored binary STL
-				// loader.load( './models/stl/binary/colored.stl', function ( geometry ) {
-
-				// 	var meshMaterial = material;
-				// 	if ( geometry.hasColors ) {
-
-				// 		meshMaterial = new THREE.MeshPhongMaterial( { opacity: geometry.alpha, vertexColors: true } );
-
-				// 	}
-
-				// 	var mesh = new THREE.Mesh( geometry, meshMaterial );
-
-				// 	mesh.position.set( 0.5, 0.2, 0 );
-				// 	mesh.rotation.set( - Math.PI / 2, Math.PI / 2, 0 );
-				// 	mesh.scale.set( 0.3, 0.3, 0.3 );
-
-				// 	mesh.castShadow = true;
-				// 	mesh.receiveShadow = true;
-
-				// 	scene.add( mesh );
-
-				// } );
-
-
-				// Lights
-
-				scene.add( new THREE.HemisphereLight( 0x443333, 0x111122 ) );
-
-				addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
-				addShadowedLight( 0.5, 1, - 1, 0xffaa00, 1 );
-				// renderer
-
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				// renderer.setSize( 200, 200 );
-				renderer.outputEncoding = THREE.sRGBEncoding;
-
-				renderer.shadowMap.enabled = true;
-
-				// stats
-
-				// stats = new Stats();
-				// container.appendChild( stats.dom );
-
-				//
-
-        window.addEventListener( 'resize', onWindowResize, false );
-        
-        document.getElementById("stlviewer").appendChild( renderer.domElement );
-
-			}
-
-			function addShadowedLight( x, y, z, color, intensity ) {
-
-				var directionalLight = new THREE.DirectionalLight( color, intensity );
-				directionalLight.position.set( x, y, z );
-				scene.add( directionalLight );
-
-				directionalLight.castShadow = true;
-
-				var d = 1;
-				directionalLight.shadow.camera.left = - d;
-				directionalLight.shadow.camera.right = d;
-				directionalLight.shadow.camera.top = d;
-				directionalLight.shadow.camera.bottom = - d;
-
-				directionalLight.shadow.camera.near = 1;
-				directionalLight.shadow.camera.far = 4;
-
-				directionalLight.shadow.bias = - 0.002;
-
-			}
-
-			function onWindowResize() {
-
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-
-				renderer.setSize( window.innerWidth, window.innerHeight );
-
-			}
-
-			function animate() {
-
-				requestAnimationFrame( animate );
-
-				render();
-				// stats.update();
-
-			}
-
-			function render() {
-
-				var timer = Date.now() * 0.0005;
-
-				camera.position.x = Math.cos( timer ) * 3;
-				camera.position.z = Math.sin( timer ) * 3;
-
-				camera.lookAt( cameraTarget );
-
-				renderer.render( scene, camera );
-
-			}
-  }
+	}
+	
 }
