@@ -14,27 +14,19 @@ var threeRenderer;
   styleUrls: ['tab1.page.scss']
 })
 
-// @Directive({
-// 	selector: '[stlviewer]'
-// })
-
 export class Tab1Page {
 	
-	// Grab handle on div to render into
-	// @ViewChild('stlviewer') stlviewer: ElementRef;
-
-	// Set up three.js resources
-	// threeRenderer: any;
-	// camera: any;
-	// scene: any;
 	loader: any;
+	fileToUpload: any;
 
 	constructor(private renderer: Renderer2, private el: ElementRef) {
 
 		threeRenderer = new THREE.WebGLRenderer( { antialias: true } );
 		camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 15 );
 		scene = new THREE.Scene();
+
 		this.loader = new STLLoader();
+		this.fileToUpload = null;
 	}
 
 	ngOnInit() {
@@ -73,34 +65,34 @@ export class Tab1Page {
 	}
 
 	ngAfterViewInit() {
-	// ASCII file
 
-	this.loader.load( '../../assets/Monkey.stl', function ( geometry ) {
+		// ASCII file
+		this.loader.load( '../../assets/Monkey.stl', function ( geometry ) {
 
-		var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
-		var mesh = new THREE.Mesh( geometry, material );
-		
-		// Compute the middle
-		var middle = new THREE.Vector3();
-		geometry.computeBoundingBox();
-		geometry.boundingBox.getCenter(middle);
+			var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
+			var mesh = new THREE.Mesh( geometry, material );
+			
+			// Compute the middle
+			var middle = new THREE.Vector3();
+			geometry.computeBoundingBox();
+			geometry.boundingBox.getCenter(middle);
 
-		mesh.position.set( 0, 0, 0 );
-		mesh.rotation.set( - Math.PI / 2, 0, 0);
-		mesh.scale.set( 0.2, 0.2, 0.2 );
+			mesh.position.set( 0, 0, 0 );
+			mesh.rotation.set( - Math.PI / 2, 0, 0);
+			mesh.scale.set( 0.2, 0.2, 0.2 );
 
-		mesh.castShadow = true;
-		mesh.receiveShadow = true;
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
 
-		scene.add( mesh );
+			scene.add( mesh );
 
-		// Pull the camera away as needed
-		
-		var largestDimension = Math.max(geometry.boundingBox.max.x,
-			geometry.boundingBox.max.y, geometry.boundingBox.max.z)
-			camera.position.z = largestDimension * 1.5;
+			// Pull the camera away as needed
+			
+			var largestDimension = Math.max(geometry.boundingBox.max.x,
+				geometry.boundingBox.max.y, geometry.boundingBox.max.z)
+				camera.position.z = largestDimension * 1.5;
 
-	});
+		});
 
 		// this.renderer.appendChild(this.el.nativeElement, threeRenderer.domElement);
 		document.getElementById("stlviewer").appendChild(threeRenderer.domElement);
@@ -152,6 +144,35 @@ export class Tab1Page {
 
 		threeRenderer.setSize( window.innerWidth, window.innerHeight );
 
+	}
+
+	handleSTL(files: FileList) {
+		
+		files.item(0).arrayBuffer().then(buffer =>{
+			var geometry = this.loader.parse(buffer);
+			var material = new THREE.MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200 } );
+			var mesh = new THREE.Mesh( geometry, material );
+			
+			// Compute the middle
+			var middle = new THREE.Vector3();
+			geometry.computeBoundingBox();
+			geometry.boundingBox.getCenter(middle);
+
+			mesh.position.set( 0, 0, 0 );
+			mesh.rotation.set( - Math.PI / 2, 0, 0);
+			mesh.scale.set( 0.2, 0.2, 0.2 );
+
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
+
+			scene.add( mesh );
+
+			// Pull the camera away as needed
+			
+			var largestDimension = Math.max(geometry.boundingBox.max.x,
+				geometry.boundingBox.max.y, geometry.boundingBox.max.z)
+				camera.position.z = largestDimension * 1.5;
+		});
 	}
 	
 }

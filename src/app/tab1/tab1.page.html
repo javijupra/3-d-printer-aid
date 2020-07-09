@@ -4,9 +4,14 @@
         Tab 1
         </ion-title>
     </ion-toolbar>
+    
 </ion-header>
 
-<ion-content id = "stlviewer" [fullscreen]="true">
-    <!-- <div class = stlviewer     data-src = '../../assets/hook.stl'> </div> -->
-    <!-- <div id = stlviewer height="700"> </div> -->
+<ion-content id = "stlviewer" class="no-scroll">
+    <ion-fab horizontal="start" vertical="top" slot="fixed">
+        <ion-fab-button (click)="inputFile.click()">
+            <ion-icon name="add"></ion-icon>  
+        </ion-fab-button>
+        <input #inputFile style="opacity:0" type="file" (change)="handleSTL($event.target.files)">
+      </ion-fab>
 </ion-content>
